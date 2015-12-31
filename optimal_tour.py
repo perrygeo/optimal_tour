@@ -53,6 +53,10 @@ def is_lonlat(features):
     return True
 
 
+def log(txt):
+    click.echo("# " + txt, err=True)
+
+
 @click.command()
 @cligj.features_in_arg
 @click.option("--mode", default="directions",
@@ -79,6 +83,7 @@ def optimal_tour(features, mode, profile, out_points):
     Directions mode requires a Mapbox account and a valid token set as
     the MAPBOX_ACCESS_TOKEN environment variable.
     """
+    log("Get point features")
     features = [f for f in features if f['geometry']['type'] == 'Point']
     if len(features) <= 2:
         raise click.UsageError(
@@ -89,6 +94,7 @@ def optimal_tour(features, mode, profile, out_points):
             "For this {} mode, input must be in lonlat coordinates".format(
                 mode))
 
+    log("Create travel cost matrix")
     if mode == 'cartesian':
         matrix = local_matrix(features, 'cartesian')
     elif mode == 'geodesic':
@@ -102,17 +108,20 @@ def optimal_tour(features, mode, profile, out_points):
             raise Exception("Got a {0} error from the Distances API: {1}".format(
                 res.status_code, res.content))
 
+    log("Prep data for concorde")
     matrix_sym = atsp_tsp(matrix, strategy="avg")
 
     outf = "/tmp/myroute.tsp"
     with open(outf, 'w') as dest:
         dest.write(dumps_matrix(matrix_sym, name="My Route"))
 
+    log("Run concorde")
     tour = run_concorde(outf, start=0)
     order = tour['tour']
 
     features_ordered = [features[i] for i in order]
 
+    log("Create lines connecting the tour")
     if mode == 'directions':
         # gather geojson linestring features along actual route via directions
         directions_api = mapbox.Directions()
@@ -137,6 +146,7 @@ def optimal_tour(features, mode, profile, out_points):
                 'coordinates': route_coords}}]
 
     # meld into one geojson feature collection
+    log("Output feature collection")
     out_features = route_features
     if out_points:
         out_features += features_ordered
