@@ -34,6 +34,7 @@ Options:
                                   points
   --profile [driving|cycling|walking]
                                   Mapbox profile if using directions
+  --out-points / --no-out-points  output points along with tour linestring
   --help                          Show this message and exit.
 ```
 

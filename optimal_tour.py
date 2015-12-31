@@ -61,7 +61,9 @@ def is_lonlat(features):
 @click.option('--profile', default="driving",
               type=click.Choice(mapbox.Distance().valid_profiles),
               help="Mapbox profile if using directions")
-def optimal_tour(features, mode, profile):
+@click.option('--out-points/--no-out-points', default=True,
+              help="output points along with tour linestring")
+def optimal_tour(features, mode, profile, out_points):
     """
     A command line interface for solving the traveling salesman problem
 
@@ -135,9 +137,13 @@ def optimal_tour(features, mode, profile):
                 'coordinates': route_coords}}]
 
     # meld into one geojson feature collection
+    out_features = route_features
+    if out_points:
+        out_features += features_ordered
+
     collection = {
         'type': 'FeatureCollection',
-        'features': features_ordered + route_features}
+        'features': out_features}
 
     click.echo(json.dumps(collection))
 
