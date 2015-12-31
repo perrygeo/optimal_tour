@@ -45,36 +45,55 @@ def local_matrix(features, method):
     return matrix
 
 
+def is_lonlat(features):
+    for f in features:
+        p = f['geometry']['coordinates']
+        if p[0] <= -180 or p[1] <= -90 or p[0] >= 180 or p[1] >= 90:
+            return False
+    return True
+
+
 @click.command()
 @cligj.features_in_arg
-@click.option("--geodesic", default=False, is_flag=True,
-              help="Use great circle distances")
-@click.option("--cartesian", default=False, is_flag=True,
-              help="Use straight-line cartesian distances")
-@click.option("--directions/--no-directions", default=True,
-              help="Find turn-by-turn directions between waypoints")
-def optimal_tour(features, geodesic, cartesian, directions):
+@click.option("--mode", default="directions",
+              type=click.Choice(['directions', 'geodesic', 'cartesian']),
+              help="Mode for calculating travel costs between points")
+@click.option('--profile', default="driving",
+              type=click.Choice(mapbox.Distance().valid_profiles),
+              help="Mapbox profile if using directions")
+def optimal_tour(features, mode, profile):
     """
+    A command line interface for solving the traveling salesman problem
+
     Input geojson features with point geometries
     and output the optimal tour as geojson feature collection.
 
-      $ cat waypoints.txt | optimal_tour | geojson-summary
+     \b
+      $ optimal_tour waypoints.geojson | geojson-summary
       19 points and 1 line
+
+    If using geodesic or directions modes, input must be in lonlat coordinates
+
+    Directions mode requires a Mapbox account and a valid token set as
+    the MAPBOX_ACCESS_TOKEN environment variable.
     """
     features = [f for f in features if f['geometry']['type'] == 'Point']
     if len(features) <= 2:
         raise click.UsageError(
             "Need at least 3 point features to create route")
 
-    if cartesian:
+    if mode != 'cartesian' and not is_lonlat(features):
+        raise click.UsageError(
+            "For this {} mode, input must be in lonlat coordinates".format(
+                mode))
+
+    if mode == 'cartesian':
         matrix = local_matrix(features, 'cartesian')
-        directions = False
-    elif geodesic:
+    elif mode == 'geodesic':
         matrix = local_matrix(features, 'geodesic')
-        directions = False
-    else:
+    elif mode == 'directions':
         dist_api = mapbox.Distance()
-        res = dist_api.distances(features)
+        res = dist_api.distances(features, profile=profile)
         if res.status_code == 200:
             matrix = res.json()['durations']
         else:
@@ -92,12 +111,12 @@ def optimal_tour(features, geodesic, cartesian, directions):
 
     features_ordered = [features[i] for i in order]
 
-    if directions:
+    if mode == 'directions':
         # gather geojson linestring features along actual route via directions
         directions_api = mapbox.Directions()
         route_features = []
         for chunk in split(features_ordered + [features_ordered[0]], 25):
-            res = directions_api.directions(chunk)
+            res = directions_api.directions(chunk, profile='mapbox.' + profile)
             if res.status_code == 200:
                 route_features.append(res.geojson()['features'][0])
             else:
