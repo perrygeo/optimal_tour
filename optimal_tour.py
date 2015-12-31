@@ -2,6 +2,7 @@
 import click
 import cligj
 import json
+import math
 
 import mapbox
 from pyconcorde import atsp_tsp, run_concorde, dumps_matrix
@@ -16,16 +17,47 @@ def split(a, chunk_size):
             for i in xrange(n))
 
 
+def great_circle(a, b, R=3959):
+    """Calculates distance between two latitude-longitude coordinates.
+    default radius in miles
+    """
+    if a == b:
+        return 0
+    lat1, lon1 = math.radians(a[0]), math.radians(a[1])
+    lat2, lon2 = math.radians(b[0]), math.radians(b[1])
+    return math.acos(math.sin(lat1) * math.sin(lat2) +
+                     math.cos(lat1) * math.cos(lat2) * math.cos(lon1 - lon2)) * R
+
+
+def local_matrix(features, method):
+    matrix = []
+    for fa in features:
+        row = []
+        for fb in features:
+            pa = fa['geometry']['coordinates']
+            pb = fb['geometry']['coordinates']
+            if method == 'geodesic':
+                dist = great_circle(pa, pb)
+            else:  # cartesian
+                dist = ((pb[0] - pa[0])**2 + (pb[1] - pa[1])**2) ** 0.5
+            row.append(dist)
+        matrix.append(row)
+    return matrix
+
+
 @click.command()
 @cligj.features_in_arg
+@click.option("--geodesic", default=False, is_flag=True,
+              help="Use great circle distances")
+@click.option("--cartesian", default=False, is_flag=True,
+              help="Use straight-line cartesian distances")
 @click.option("--directions/--no-directions", default=True,
               help="Find turn-by-turn directions between waypoints")
-def optimal_tour(features, directions):
+def optimal_tour(features, geodesic, cartesian, directions):
     """
-    Collect some waypoints (need three or more)
-      $ mapbox geocoding "Arcata, CA" | jq -c .features[0] >> waypoints.txt
+    Input geojson features with point geometries
+    and output the optimal tour as geojson feature collection.
 
-    Then pipe to the optimize_route CLI
       $ cat waypoints.txt | optimal_tour | geojson-summary
       19 points and 1 line
     """
@@ -34,13 +66,20 @@ def optimal_tour(features, directions):
         raise click.UsageError(
             "Need at least 3 point features to create route")
 
-    dist_api = mapbox.Distance()
-    res = dist_api.distances(features)
-    if res.status_code == 200:
-        matrix = res.json()['durations']
+    if cartesian:
+        matrix = local_matrix(features, 'cartesian')
+        directions = False
+    elif geodesic:
+        matrix = local_matrix(features, 'geodesic')
+        directions = False
     else:
-        raise Exception("Got a {0} error from the Distances API: {1}".format(
-            res.status_code, res.content))
+        dist_api = mapbox.Distance()
+        res = dist_api.distances(features)
+        if res.status_code == 200:
+            matrix = res.json()['durations']
+        else:
+            raise Exception("Got a {0} error from the Distances API: {1}".format(
+                res.status_code, res.content))
 
     matrix_sym = atsp_tsp(matrix, strategy="avg")
 
