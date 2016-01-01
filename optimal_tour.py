@@ -8,12 +8,16 @@ import mapbox
 from pyconcorde import atsp_tsp, run_concorde, dumps_matrix
 
 
-def split(a, chunk_size):
+def split_overlap(a, chunk_size, overlap=1):
     """ Given a list a,
-    generate ordered lists no larger than chunk_size"""
+    generate ordered lists no larger than chunk_size
+    overlap by given number of places
+    chunk[0][-1] = chunk[1][0] when overlap=1
+    """
     n = int((len(a) / float(chunk_size)) + 1)
-    k, m = len(a) / n, len(a) % n
-    return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)]
+    k = len(a) / n
+    m = len(a) % n
+    return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m) + overlap]
             for i in xrange(n))
 
 
@@ -126,7 +130,7 @@ def optimal_tour(features, mode, profile, out_points):
         # gather geojson linestring features along actual route via directions
         directions_api = mapbox.Directions()
         route_features = []
-        for chunk in split(features_ordered + [features_ordered[0]], 25):
+        for chunk in split_overlap(features_ordered + [features_ordered[0]], 24):
             res = directions_api.directions(chunk, profile='mapbox.' + profile)
             if res.status_code == 200:
                 route_features.append(res.geojson()['features'][0])
