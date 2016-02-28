@@ -12,7 +12,7 @@ Given locations as GeoJSON point features, find the shortest tour (based on driv
 ## Usage
 
 ```
-$ optimal_tour.py --help
+$ ./optimal_tour.py --help
 Usage: optimal_tour.py [OPTIONS] FEATURES...
 
   A command line interface for solving the traveling salesman problem
@@ -29,11 +29,12 @@ Usage: optimal_tour.py [OPTIONS] FEATURES...
   MAPBOX_ACCESS_TOKEN environment variable.
 
 Options:
-  --mode [directions|geodesic|cartesian]
+  --mode [geodesic|cartesian|directions]
                                   Mode for calculating travel costs between
                                   points
   --profile [driving|cycling|walking]
                                   Mapbox profile if using directions
+  --solver [lkh|concorde]         TSP Solver to use
   --out-points / --no-out-points  output points along with tour linestring
   --help                          Show this message and exit.
 ```

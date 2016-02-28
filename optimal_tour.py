@@ -69,7 +69,8 @@ def log(txt):
 @click.option('--profile', default="driving",
               type=click.Choice(mapbox.Distance().valid_profiles),
               help="Mapbox profile if using directions")
-@click.option("--solver", default="concorde", type=click.Choices("lkh", "concorde"))
+@click.option("--solver", default="concorde", type=click.Choice(("lkh", "concorde")),
+              help="TSP Solver to use")
 @click.option('--out-points/--no-out-points', default=True,
               help="output points along with tour linestring")
 def optimal_tour(features, mode, profile, out_points, solver):
