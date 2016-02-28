@@ -1,4 +1,4 @@
 mapboxcli
 click
 cligj
-git+https://github.com/perrygeo/pyconcorde.git
+git+https://github.com/perrygeo/pytsp.git

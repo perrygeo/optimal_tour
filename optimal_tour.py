@@ -5,7 +5,7 @@ import json
 import math
 
 import mapbox
-from pyconcorde import atsp_tsp, run_concorde, dumps_matrix
+from pytsp import atsp_tsp, run, dumps_matrix
 
 
 def split_overlap(a, chunk_size, overlap=1):
@@ -63,15 +63,16 @@ def log(txt):
 
 @click.command()
 @cligj.features_in_arg
-@click.option("--mode", default="directions",
-              type=click.Choice(['directions', 'geodesic', 'cartesian']),
+@click.option("--mode", default="geodesic",
+              type=click.Choice(['geodesic', 'cartesian', 'directions']),
               help="Mode for calculating travel costs between points")
 @click.option('--profile', default="driving",
               type=click.Choice(mapbox.Distance().valid_profiles),
               help="Mapbox profile if using directions")
+@click.option("--solver", default="concorde", type=click.Choices("lkh", "concorde"))
 @click.option('--out-points/--no-out-points', default=True,
               help="output points along with tour linestring")
-def optimal_tour(features, mode, profile, out_points):
+def optimal_tour(features, mode, profile, out_points, solver):
     """
     A command line interface for solving the traveling salesman problem
 
@@ -112,15 +113,15 @@ def optimal_tour(features, mode, profile, out_points):
             raise Exception("Got a {0} error from the Distances API: {1}".format(
                 res.status_code, res.content))
 
-    log("Prep data for concorde")
+    log("Prep data")
     matrix_sym = atsp_tsp(matrix, strategy="avg")
 
     outf = "/tmp/myroute.tsp"
     with open(outf, 'w') as dest:
         dest.write(dumps_matrix(matrix_sym, name="My Route"))
 
-    log("Run concorde")
-    tour = run_concorde(outf, start=0)
+    log("Run TSP solver")
+    tour = run(outf, start=0, solver=solver)
     order = tour['tour']
 
     features_ordered = [features[i] for i in order]

@@ -40,7 +40,7 @@ Options:
 
 ## Installation
 
-1. Install the [concorde](http://www.math.uwaterloo.ca/tsp/concorde.html) TSP solver according to [these instructions](https://github.com/perrygeo/pyconcorde/wiki/Installing-Concorde)
+1. Install a TSP solver, either [concorde](http://www.math.uwaterloo.ca/tsp/concorde.html) or [LKH](http://www.akira.ruc.dk/~keld/research/LKH/), according to [these instructions](https://github.com/perrygeo/pytsp/wiki/Installing-Solvers)
 1. Install python dependencies with `pip install -r requirements.txt`
 1. If you want to use directions mode, you'll need a [Mapbox account](https://www.mapbox.com/studio/signup/) and a valid token set as the `MAPBOX_ACCESS_TOKEN` environment variable.
 1. Test it: `optimal_tour.py < waypoints.txt` and you should see a geojson feature collection printed to stdout.
